@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Проверка безопасности — Капча</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        body {
+            background-color: #f0f2f5;
+            color: #1c1e21;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 16px;
+        }
+        .card {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            max-width: 400px;
+            width: 100%;
+            padding: 32px 28px;
+            text-align: center;
+            border: 1px solid #e4e6eb;
+        }
+        .shield-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 16px;
+            background: #e7f3ff;
+            color: #1877f2;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        h1 {
+            font-size: 21px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1c1e21;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: #65676b;
+            margin-bottom: 22px;
+            line-height: 1.4;
+        }
+        .captcha-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        canvas {
+            border-radius: 8px;
+            border: 1px solid #ccd0d5;
+            background-color: #f7f8fa;
+        }
+        .refresh-btn {
+            background: #f0f2f5;
+            border: 1px solid #ccd0d5;
+            border-radius: 8px;
+            width: 44px;
+            height: 64px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #4b4f56;
+            transition: background 0.2s;
+        }
+        .refresh-btn:hover {
+            background: #e4e6eb;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 14px;
+            font-size: 16px;
+            border: 1px solid #ccd0d5;
+            border-radius: 8px;
+            text-align: center;
+            letter-spacing: 3px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus {
+            border-color: #1877f2;
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #1877f2;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .submit-btn:hover {
+            background-color: #166fe5;
+        }
+        .error-text {
+            color: #fa383e;
+            font-size: 13px;
+            margin-top: 12px;
+            display: none;
+        }
+        .success-view {
+            display: none;
+        }
+        .success-icon {
+            width: 52px;
+            height: 52px;
+            margin: 0 auto 16px;
+            background: #e6f4ea;
+            color: #1e8e3e;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .success-view h2 {
+            font-size: 21px;
+            color: #1e8e3e;
+            margin-bottom: 8px;
+        }
+        .retry-link {
+            display: inline-block;
+            margin-top: 16px;
+            font-size: 13px;
+            color: #65676b;
+            background: none;
+            border: none;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .retry-link:hover {
+            color: #1c1e21;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div id="captcha-step">
+        <div class="shield-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+        </div>
+        <h1>Подтвердите, что вы не робот</h1>
+        <p class="subtitle">Введите символы, изображённые на картинке</p>
+
+        <div class="captcha-wrapper">
+            <canvas id="captchaCanvas" width="210" height="64"></canvas>
+            <button type="button" class="refresh-btn" onclick="generateCaptcha()" title="Обновить картинку">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                </svg>
+            </button>
+        </div>
+
+        <input type="text" id="captchaInput" placeholder="Код с картинки" autocomplete="off">
+        <button type="button" class="submit-btn" onclick="verifyCaptcha()">Проверить</button>
+        <div id="errorMsg" class="error-text">Неверно введены символы. Попробуйте снова.</div>
+    </div>
+
+    <div id="success-step" class="success-view">
+        <div class="success-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+        </div>
+        <h2>Проверка пройдена!</h2>
+        <p class="subtitle">Доступ успешно подтверждён.</p>
+        <button type="button" class="retry-link" onclick="resetCaptcha()">Пройти заново</button>
+    </div>
+</div>
+
+<script>
+    // Замените эту ссылку на адрес нужного вам сайта
+    const REDIRECT_URL = "https://example.com";
+
+    let captchaText = "";
+    let redirectTimer = null;
+
+    function generateCaptcha() {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        captchaText = "";
+        for (let i = 0; i < 6; i++) {
+            captchaText += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        const canvas = document.getElementById("captchaCanvas");
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Фон с лёгким градиентом
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, "#f0f4f8");
+        gradient.addColorStop(1, "#e2e8f0");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Линии помех
+        for (let i = 0; i < 6; i++) {
+            ctx.strokeStyle = `rgba(${Math.floor(Math.random()*120)}, ${Math.floor(Math.random()*120)}, ${Math.floor(Math.random()*120)}, 0.4)`;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
+            ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height);
+            ctx.stroke();
+        }
+
+        // Точки шума
+        for (let i = 0; i < 35; i++) {
+            ctx.fillStyle = "rgba(100, 116, 139, 0.4)";
+            ctx.beginPath();
+            ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 1.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Отрисовка символов с наклоном и смещением
+        const startX = 24;
+        const stepX = 28;
+        for (let i = 0; i < captchaText.length; i++) {
+            ctx.save();
+            const x = startX + i * stepX;
+            const y = 36 + (Math.random() * 10 - 5);
+            const angle = (Math.random() * 0.4 - 0.2);
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            ctx.font = "bold 26px 'Courier New', monospace";
+            ctx.fillStyle = "#1e293b";
+            ctx.fillText(captchaText[i], 0, 0);
+            ctx.restore();
+        }
+    }
+
+    function verifyCaptcha() {
+        const input = document.getElementById("captchaInput").value.trim().toUpperCase();
+        const errorMsg = document.getElementById("errorMsg");
+
+        if (input === captchaText) {
+            errorMsg.style.display = "none";
+            document.getElementById("captcha-step").style.display = "none";
+            document.getElementById("success-step").style.display = "block";
+
+            redirectTimer = setTimeout(() => {
+                window.location.href = REDIRECT_URL;
+            }, 1200);
+        } else {
+            errorMsg.style.display = "block";
+            document.getElementById("captchaInput").value = "";
+            generateCaptcha();
+        }
+    }
+
+    function resetCaptcha() {
+        clearTimeout(redirectTimer);
+        document.getElementById("captchaInput").value = "";
+        document.getElementById("errorMsg").style.display = "none";
+        document.getElementById("success-step").style.display = "none";
+        document.getElementById("captcha-step").style.display = "block";
+        generateCaptcha();
+    }
+
+    document.getElementById("captchaInput").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") {
+            verifyCaptcha();
+        }
+    });
+
+    window.onload = generateCaptcha;
+</script>
+
+</body>
+</html>
