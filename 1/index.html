@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Проверка безопасности — Капча</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+    overflow: hidden;
+    color: #f8fafc;
+  }
+
+  .bg-circles {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .circle {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.35;
+    animation: float 10s infinite ease-in-out alternate;
+  }
+
+  .circle-1 {
+    width: 320px;
+    height: 320px;
+    background: #3b82f6;
+    top: 10%;
+    left: 15%;
+  }
+
+  .circle-2 {
+    width: 380px;
+    height: 380px;
+    background: #8b5cf6;
+    bottom: 10%;
+    right: 15%;
+    animation-delay: -5s;
+  }
+
+  @keyframes float {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(30px, -40px) scale(1.1); }
+  }
+
+  .captcha-card {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 400px;
+    background: rgba(30, 41, 59, 0.85);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    padding: 32px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    animation: cardAppear 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes cardAppear {
+    from {
+      opacity: 0;
+      transform: translateY(24px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  .shield-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 12px;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.35);
+    animation: pulseGlow 3s infinite ease-in-out;
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 8px 20px rgba(59, 130, 246, 0.35); }
+    50% { box-shadow: 0 8px 30px rgba(139, 92, 246, 0.65); }
+  }
+
+  .header h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .header p {
+    font-size: 0.9rem;
+    color: #94a3b8;
+  }
+
+  .canvas-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  canvas {
+    flex: 1;
+    height: 84px;
+    border-radius: 12px;
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    display: block;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+  }
+
+  canvas.refreshing {
+    transform: scale(0.95);
+    opacity: 0.4;
+  }
+
+  .refresh-btn {
+    width: 48px;
+    height: 84px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(15, 23, 42, 0.8);
+    color: #e2e8f0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, border-color 0.2s, transform 0.2s;
+  }
+
+  .refresh-btn:hover {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: #3b82f6;
+  }
+
+  .refresh-btn:active {
+    transform: scale(0.95);
+  }
+
+  .refresh-btn svg {
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .refresh-btn.spin svg {
+    transform: rotate(360deg);
+  }
+
+  .input-group {
+    margin-bottom: 16px;
+  }
+
+  .captcha-input {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 1.15rem;
+    letter-spacing: 0.25em;
+    text-align: center;
+    font-weight: 600;
+    color: #f8fafc;
+    background: rgba(15, 23, 42, 0.9);
+    border: 2px solid rgba(255, 255, 255, 0.14);
+    border-radius: 12px;
+    outline: none;
+    transition: border-color 0.25s, box-shadow 0.25s;
+  }
+
+  .captcha-input::placeholder {
+    letter-spacing: normal;
+    font-weight: 400;
+    font-size: 0.95rem;
+    color: #64748b;
+  }
+
+  .captcha-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+  }
+
+  .captcha-input.error {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2);
+    animation: shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  }
+
+  .captcha-input.success {
+    border-color: #22c55e;
+    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
+  }
+
+  @keyframes shake {
+    10%, 90% { transform: translateX(-3px); }
+    20%, 80% { transform: translateX(5px); }
+    30%, 50%, 70% { transform: translateX(-7px); }
+    40%, 60% { transform: translateX(7px); }
+  }
+
+  .submit-btn {
+    width: 100%;
+    padding: 14px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #ffffff;
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, filter 0.2s;
+    box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.45);
+  }
+
+  .submit-btn:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+  }
+
+  .submit-btn:active {
+    transform: translateY(1px);
+  }
+
+  .status-message {
+    margin-top: 16px;
+    min-height: 24px;
+    text-align: center;
+    font-size: 0.92rem;
+    font-weight: 500;
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+
+  .status-message.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .status-message.error-text {
+    color: #f87171;
+  }
+
+  .status-message.success-text {
+    color: #4ade80;
+  }
+
+  .success-overlay {
+    display: none;
+    text-align: center;
+    padding: 16px 0 4px;
+    animation: popIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes popIn {
+    0% { opacity: 0; transform: scale(0.8); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  .checkmark-circle {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 14px;
+    border-radius: 50%;
+    background: rgba(34, 197, 94, 0.15);
+    border: 2px solid #22c55e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #22c55e;
+  }
+
+  .checkmark-path {
+    stroke-dasharray: 40;
+    stroke-dashoffset: 40;
+    animation: drawCheck 0.5s 0.15s ease forwards;
+  }
+
+  @keyframes drawCheck {
+    to { stroke-dashoffset: 0; }
+  }
+
+  .reset-link {
+    display: inline-block;
+    margin-top: 14px;
+    font-size: 0.85rem;
+    color: #60a5fa;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-circles">
+  <div class="circle circle-1"></div>
+  <div class="circle circle-2"></div>
+</div>
+
+<div class="captcha-card">
+  <div class="header">
+    <div class="shield-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+    </div>
+    <h1>Подтвердите, что вы не робот</h1>
+    <p>Введите символы, изображённые на картинке</p>
+  </div>
+
+  <div id="captchaForm">
+    <div class="canvas-wrapper">
+      <canvas id="captchaCanvas" width="260" height="84"></canvas>
+      <button type="button" class="refresh-btn" id="refreshBtn" title="Обновить картинку" aria-label="Обновить картинку">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="input-group">
+      <input type="text" id="captchaInput" class="captcha-input" placeholder="Введите буквы с картинки" maxlength="6" autocomplete="off" spellcheck="false">
+    </div>
+
+    <button type="button" id="verifyBtn" class="submit-btn">Проверить</button>
+
+    <div id="statusMsg" class="status-message"></div>
+  </div>
+
+  <div id="successView" class="success-overlay">
+    <div class="checkmark-circle">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <polyline class="checkmark-path" points="20 6 9 17 4 12"></polyline>
+      </svg>
+    </div>
+    <h2 style="font-size: 1.2rem; margin-bottom: 6px;">Проверка пройдена!</h2>
+    <p style="font-size: 0.9rem; color: #94a3b8;">Доступ успешно подтверждён.</p>
+    <button type="button" id="restartBtn" class="reset-link">Пройти заново</button>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById('captchaCanvas');
+  const ctx = canvas.getContext('2d');
+  const input = document.getElementById('captchaInput');
+  const verifyBtn = document.getElementById('verifyBtn');
+  const refreshBtn = document.getElementById('refreshBtn');
+  const statusMsg = document.getElementById('statusMsg');
+  const captchaForm = document.getElementById('captchaForm');
+  const successView = document.getElementById('successView');
+  const restartBtn = document.getElementById('restartBtn');
+
+  const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let currentCode = '';
+  let charConfigs = [];
+  let noiseLines = [];
+  let noiseDots = [];
+  let animationFrameId = null;
+
+  function randomBetween(min, max) {
+    return Math.random() * (max - min) + min;
+  }
+
+  function generateCaptchaData() {
+    currentCode = '';
+    charConfigs = [];
+    noiseLines = [];
+    noiseDots = [];
+
+    const length = 5;
+    const colors = ['#60a5fa', '#a78bfa', '#34d399', '#f472b6', '#fbbf24', '#38bdf8'];
+
+    for (let i = 0; i < length; i++) {
+      const char = CHARS.charAt(Math.floor(Math.random() * CHARS.length));
+      currentCode += char;
+      charConfigs.push({
+        char,
+        baseX: 34 + i * 46,
+        baseY: 46,
+        baseAngle: randomBetween(-0.35, 0.35),
+        phase: randomBetween(0, Math.PI * 2),
+        speed: randomBetween(0.025, 0.045),
+        color: colors[Math.floor(Math.random() * colors.length)],
+        fontSize: Math.floor(randomBetween(30, 36))
+      });
+    }
+
+    for (let i = 0; i < 6; i++) {
+      noiseLines.push({
+        x1: randomBetween(0, canvas.width),
+        y1: randomBetween(0, canvas.height),
+        x2: randomBetween(0, canvas.width),
+        y2: randomBetween(0, canvas.height),
+        color: colors[Math.floor(Math.random() * colors.length)],
+        phase: randomBetween(0, Math.PI * 2)
+      });
+    }
+
+    for (let i = 0; i < 45; i++) {
+      noiseDots.push({
+        x: randomBetween(0, canvas.width),
+        y: randomBetween(0, canvas.height),
+        r: randomBetween(1, 2.3),
+        color: colors[Math.floor(Math.random() * colors.length)]
+      });
+    }
+  }
+
+  let tick = 0;
+  function renderLoop() {
+    tick += 1;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Фон с лёгким градиентом
+    const bgGrad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    bgGrad.addColorStop(0, '#0f172a');
+    bgGrad.addColorStop(1, '#1e293b');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Точки помех
+    noiseDots.forEach(dot => {
+      ctx.beginPath();
+      ctx.arc(dot.x, dot.y, dot.r, 0, Math.PI * 2);
+      ctx.fillStyle = dot.color + '55';
+      ctx.fill();
+    });
+
+    // Анимированные линии помех
+    noiseLines.forEach(line => {
+      const offset = Math.sin(tick * 0.03 + line.phase) * 6;
+      ctx.beginPath();
+      ctx.moveTo(line.x1, line.y1 + offset);
+      ctx.bezierCurveTo(
+        canvas.width * 0.33, line.y1 - offset * 1.5,
+        canvas.width * 0.66, line.y2 + offset * 1.5,
+        line.x2, line.y2 - offset
+      );
+      ctx.strokeStyle = line.color + '66';
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+    });
+
+    // Отрисовка букв с плавным покачиванием
+    charConfigs.forEach(item => {
+      const floatY = Math.sin(tick * item.speed + item.phase) * 4;
+      const swayAngle = item.baseAngle + Math.cos(tick * item.speed + item.phase) * 0.12;
+
+      ctx.save();
+      ctx.translate(item.baseX, item.baseY + floatY);
+      ctx.rotate(swayAngle);
+      ctx.font = `bold ${item.fontSize}px "Courier New", monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Тень для объёма
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+      ctx.fillText(item.char, 2, 2);
+
+      // Основной символ
+      ctx.fillStyle = item.color;
+      ctx.fillText(item.char, 0, 0);
+      ctx.restore();
+    });
+
+    animationFrameId = requestAnimationFrame(renderLoop);
+  }
+
+  function refreshCaptcha() {
+    refreshBtn.classList.add('spin');
+    canvas.classList.add('refreshing');
+    setTimeout(() => {
+      generateCaptchaData();
+      canvas.classList.remove('refreshing');
+    }, 180);
+    setTimeout(() => {
+      refreshBtn.classList.remove('spin');
+    }, 500);
+  }
+
+  function showStatus(text, isError) {
+    statusMsg.textContent = text;
+    statusMsg.className = 'status-message visible ' + (isError ? 'error-text' : 'success-text');
+  }
+
+  function verifyCaptcha() {
+    const userValue = input.value.trim().toUpperCase();
+    input.classList.remove('error', 'success');
+
+    if (!userValue) {
+      void input.offsetWidth;
+      input.classList.add('error');
+      showStatus('Пожалуйста, введите символы с картинки.', true);
+      input.focus();
+      return;
+    }
+
+    if (userValue === currentCode) {
+      input.classList.add('success');
+      showStatus('Верно! Проверка пройдена.', false);
+      setTimeout(() => {
+        captchaForm.style.display = 'none';
+        successView.style.display = 'block';
+      }, 450);
+    } else {
+      void input.offsetWidth;
+      input.classList.add('error');
+      showStatus('Неверный код. Попробуйте ещё раз.', true);
+      input.value = '';
+      refreshCaptcha();
+      input.focus();
+    }
+  }
+
+  refreshBtn.addEventListener('click', () => {
+    statusMsg.classList.remove('visible');
+    input.classList.remove('error', 'success');
+    input.value = '';
+    refreshCaptcha();
+    input.focus();
+  });
+
+  verifyBtn.addEventListener('click', verifyCaptcha);
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      verifyCaptcha();
+    }
+  });
+
+  restartBtn.addEventListener('click', () => {
+    successView.style.display = 'none';
+    captchaForm.style.display = 'block';
+    input.value = '';
+    input.classList.remove('error', 'success');
+    statusMsg.classList.remove('visible');
+    refreshCaptcha();
+    input.focus();
+  });
+
+  generateCaptchaData();
+  renderLoop();
+</script>
+
+</body>
+  </html>
